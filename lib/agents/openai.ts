@@ -60,8 +60,51 @@ export function createOpenAIProvider(): LLMProvider {
       newsId: string;
       sos: import("@/lib/types").MapIncidentSos;
       events: import("@/lib/types").MapIncidentEvent[];
+      imageDataUrls?: string[];
     }): Promise<ArticleDraft> {
-      const out = await chatJSON<{
+      const key = process.env.OPENAI_API_KEY;
+      if (!key) throw new Error("OPENAI_API_KEY not set");
+      const textPart = JSON.stringify({
+        newsId: input.newsId,
+        sos: input.sos,
+        events: input.events,
+      });
+      const imgs = input.imageDataUrls || [];
+      const userContent: Array<
+        | { type: "text"; text: string }
+        | { type: "image_url"; image_url: { url: string } }
+      > = [
+        {
+          type: "text",
+          text: `${textPart}\n\nReply JSON only: title, dek, summary, articleBody, canonicalTags[], severity, imageDescriptors[] (caption per image in order), actionables[3], dontDos[3].`,
+        },
+      ];
+      for (const url of imgs.slice(0, 4)) {
+        if (url.startsWith("data:image/")) userContent.push({ type: "image_url", image_url: { url } });
+      }
+      const res = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${key}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: MODEL,
+          messages: [
+            {
+              role: "system",
+              content:
+                "Crisis news writer. Use images only as unverified visual context. JSON object only.",
+            },
+            { role: "user", content: userContent },
+          ],
+          temperature: 0.4,
+          response_format: { type: "json_object" },
+        }),
+      });
+      if (!res.ok) throw new Error(`OpenAI error: ${res.status} ${await res.text()}`);
+      const data = (await res.json()) as { choices: [{ message: { content: string } }] };
+      const out = JSON.parse(data.choices[0]?.message?.content || "{}") as {
         title: string;
         dek: string;
         summary: string;
@@ -71,10 +114,7 @@ export function createOpenAIProvider(): LLMProvider {
         imageDescriptors: string[];
         actionables: [string, string, string];
         dontDos: [string, string, string];
-      }>(
-        `Crisis news from one SOS and multiple map events. JSON: title, dek, summary, articleBody (markdown), canonicalTags[], severity, imageDescriptors[] (can be []), actionables [3 strings], dontDos [3 strings].`,
-        JSON.stringify(input)
-      );
+      };
       return {
         ...out,
         imageDescriptors: out.imageDescriptors || [],

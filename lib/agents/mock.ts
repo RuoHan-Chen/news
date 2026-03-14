@@ -17,8 +17,10 @@ export const mockProvider: LLMProvider = {
     newsId: string;
     sos: import("@/lib/types").MapIncidentSos;
     events: import("@/lib/types").MapIncidentEvent[];
+    imageDataUrls?: string[];
   }): Promise<ArticleDraft> {
     const s = input.sos;
+    const n = input.imageDataUrls?.length ?? 0;
     return {
       title: `SOS: ${s.title}`,
       dek: `${input.events.length} map event(s) · Unverified`,
@@ -36,7 +38,10 @@ export const mockProvider: LLMProvider = {
       ].join("\n\n"),
       canonicalTags: ["sos", "mesh", "unverified"],
       severity: "high",
-      imageDescriptors: [],
+      imageDescriptors:
+        n > 0
+          ? Array.from({ length: n }, (_, i) => `Submitted image ${i + 1} (mock: vision not run).`)
+          : [],
       unverifiedNote: "Mock article from SOS + events.",
       actionables: [
         "Stay away from reported hazard zones until official all-clear.",

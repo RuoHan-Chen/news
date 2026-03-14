@@ -52,11 +52,14 @@ export default function IncidentMap({ data }: { data: NewsStoryMapIncidents }) {
         );
 
       data.events.forEach((e) => {
+        let popup = `<strong>${escapeHtml(e.title)}</strong><br/><small>${escapeHtml(e.description).slice(0, 280)}</small>`;
+        if (e.image?.data && e.image?.mime_type) {
+          const src = `data:${e.image.mime_type};base64,${e.image.data}`;
+          popup += `<br/><img src="${src.replace(/"/g, "&quot;")}" alt="" style="max-width:220px;max-height:160px;margin-top:6px;border-radius:6px;" />`;
+        }
         L.marker([e.latitude, e.longitude], { icon: blue })
           .addTo(map)
-          .bindPopup(
-            `<strong>${escapeHtml(e.title)}</strong><br/><small>${escapeHtml(e.description).slice(0, 280)}</small>`
-          );
+          .bindPopup(popup);
       });
     })();
     return () => {

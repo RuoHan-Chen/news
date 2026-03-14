@@ -17,6 +17,7 @@ import {
 import Link from "next/link";
 import { useCloudSync } from "@/components/CloudSyncProvider";
 import { setSyncRoomId } from "@/lib/storage/cloudSync";
+import { fileToVisionSafeDataUrl } from "@/lib/utils/imageCompress";
 import { normalizeImageDescriptor } from "@/lib/utils/imageDescriptors";
 
 const repo = createIndexedDBRepository();
@@ -115,7 +116,8 @@ export default function MeshNewsDashboard() {
       "title": "Road closure",
       "description": "Local mesh: King St blocked both directions.",
       "latitude": -33.918,
-      "longitude": 151.228
+      "longitude": 151.228,
+      "image": { "data": "<base64 string>", "mime_type": "image/jpeg" }
     },
     {
       "title": "Power flicker",
@@ -144,10 +146,25 @@ export default function MeshNewsDashboard() {
           description: string;
           latitude: number;
           longitude: number;
+          image?: { data: string; mime_type?: string };
         }>;
         send_sos_sms?: boolean;
         authoritySmsTo?: string;
+        images?: string[];
       };
+      const fileInput = document.getElementById(
+        "generate-images"
+      ) as HTMLInputElement | null;
+      const files = fileInput?.files;
+      if (files?.length) {
+        const urls: string[] = [];
+        for (let i = 0; i < Math.min(files.length, 4); i++) {
+          const f = files[i];
+          if (!f.type.startsWith("image/")) continue;
+          urls.push(await fileToVisionSafeDataUrl(f));
+        }
+        body.images = [...(body.images || []), ...urls].slice(0, 4);
+      }
       const gen = await fetch("/api/stories/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -284,7 +301,6 @@ export default function MeshNewsDashboard() {
     else setMsg("Draft saved.");
   }
 
-  const latestBrief = briefs[0];
   const inputClass =
     "mt-1 w-full border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 focus:border-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-400";
 
@@ -299,9 +315,6 @@ export default function MeshNewsDashboard() {
                 <h1 className="text-2xl font-bold tracking-tight text-neutral-900 sm:text-3xl">
                   MeshNews
                 </h1>
-                <p className="mt-0.5 text-sm text-neutral-500">
-                  Local updates from your area
-                </p>
               </div>
               <button
                 type="button"
@@ -311,15 +324,6 @@ export default function MeshNewsDashboard() {
                 Developer
               </button>
             </div>
-            <p className="mt-3 text-xs leading-relaxed text-neutral-600">
-              Some items are based on community reports and are not confirmed by
-              official sources. Always follow advice from emergency services.
-            </p>
-            {sync?.syncOn && (
-              <p className="mt-2 rounded bg-sky-50 px-2 py-1 text-xs text-sky-800">
-                Shared demo sync on · list updates ~every 10s
-              </p>
-            )}
           </div>
         </header>
 
@@ -374,50 +378,7 @@ export default function MeshNewsDashboard() {
               </ul>
             )}
           </section>
-
-          <section className="border-t border-neutral-200 pt-8">
-              <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-neutral-500">
-                Local safety
-              </h2>
-              <p className="mb-4 text-sm text-neutral-600">
-                Suggestions based on recent local reports. Not official advice.
-              </p>
-              {latestBrief ? (
-                <div className="space-y-6 text-sm">
-                  <p className="text-neutral-700">{latestBrief.rationale}</p>
-                  <div>
-                    <h3 className="mb-2 font-semibold text-neutral-900">
-                      Suggested steps
-                    </h3>
-                    <ol className="list-decimal space-y-2 pl-5 text-neutral-700">
-                      {latestBrief.actionableRecommendations.map((x, i) => (
-                        <li key={i}>{x}</li>
-                      ))}
-                    </ol>
-                  </div>
-                  <div>
-                    <h3 className="mb-2 font-semibold text-neutral-900">
-                      Things to avoid
-                    </h3>
-                    <ol className="list-decimal space-y-2 pl-5 text-neutral-700">
-                      {latestBrief.avoidRecommendations.map((x, i) => (
-                        <li key={i}>{x}</li>
-                      ))}
-                    </ol>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-sm text-neutral-500">
-                  No safety brief yet. A developer can generate one from the
-                  Developer screen.
-                </p>
-              )}
-            </section>
         </main>
-
-        <footer className="border-t border-neutral-200 py-6 text-center text-xs text-neutral-500">
-          MeshNews demo
-        </footer>
       </div>
     );
   }
@@ -527,8 +488,21 @@ export default function MeshNewsDashboard() {
               . One <strong>sos</strong> (title, description, location) → one SMS
               when <code className="rounded bg-neutral-100 px-1">send_sos_sms</code>
               . Many <strong>events</strong> → map pins only. Article includes 3
-              actionables + 3 don&apos;ts. Stored in this browser.
+              actionables + 3 don&apos;ts. Per-event photos:{" "}
+              <code className="rounded bg-neutral-100 px-1">events[].image</code>{" "}
+              = <code className="rounded bg-neutral-100 px-1">{`{ "data": "<base64>", "mime_type": "image/jpeg" }`}</code>
+              . Or use file picker to add top-level <code className="rounded bg-neutral-100 px-1">images</code> (data URLs).
             </p>
+            <label className="mb-3 block text-xs font-medium text-neutral-700">
+              Or attach photos here (top-level <code className="rounded bg-neutral-100 px-1">images</code>)
+              <input
+                id="generate-images"
+                type="file"
+                accept="image/*"
+                multiple
+                className="mt-1 block w-full text-xs"
+              />
+            </label>
             <textarea
               id="generate-json"
               rows={22}

@@ -24,12 +24,14 @@ export async function generateStoryFromIncidents(params: {
   newsId: string;
   sos: MapIncidentSos;
   events: MapIncidentEvent[];
+  imageDataUrls?: string[];
 }): Promise<StoryGenerateResult> {
   const llm = getLLMProvider();
   const draft = await llm.generateArticleFromIncidents({
     newsId: params.newsId,
     sos: params.sos,
     events: params.events,
+    imageDataUrls: params.imageDataUrls,
   });
 
   const actionables = pad3(draft.actionables, "Stay informed");
@@ -48,7 +50,7 @@ export async function generateStoryFromIncidents(params: {
     areaHash: areaHashFromCoords(params.sos.latitude, params.sos.longitude),
     createdAt: new Date().toISOString(),
     sourceReportIds: [params.newsId],
-    imageUrls: [],
+    imageUrls: [...(params.imageDataUrls || [])],
     imageDescriptors: normalizeImageDescriptors(
       draft.imageDescriptors as unknown[]
     ),

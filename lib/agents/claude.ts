@@ -113,13 +113,25 @@ export function createClaudeProvider(): LLMProvider {
       newsId: string;
       sos: import("@/lib/types").MapIncidentSos;
       events: import("@/lib/types").MapIncidentEvent[];
+      imageDataUrls?: string[];
     }): Promise<ArticleDraft> {
-      const user = JSON.stringify({
+      const meta = JSON.stringify({
         newsId: input.newsId,
         sos: input.sos,
         events: input.events,
       });
-      const out = await chatJSON<{
+      const content: ContentBlock[] = [
+        {
+          type: "text",
+          text: `${meta}\n\nAttached images (if any) are unverified scene photos. Describe only what is visible. JSON: title, dek, summary, articleBody, canonicalTags[], severity, imageDescriptors[] (one caption per image in order), actionables[3], dontDos[3].`,
+        },
+      ];
+      for (const url of input.imageDataUrls || []) {
+        if (content.length >= 6) break;
+        const block = dataUrlToImageBlock(url);
+        if (block) content.push(block);
+      }
+      const out = await messagesJSON<{
         title: string;
         dek: string;
         summary: string;
@@ -130,8 +142,8 @@ export function createClaudeProvider(): LLMProvider {
         actionables: [string, string, string];
         dontDos: [string, string, string];
       }>(
-        `You write factual, neutral local crisis news. One primary SOS plus multiple map events (unverified). JSON only: title, dek, summary, articleBody (markdown paragraphs), canonicalTags[], severity (low|medium|high|critical), imageDescriptors[] (empty array OK), actionables: exactly 3 short imperative lines (what to do now in this situation), dontDos: exactly 3 short lines (what not to do — rumors, unsafe acts, etc.).`,
-        user
+        `You write factual, neutral local crisis news from SOS + map events.`,
+        content
       );
       return {
         title: out.title,

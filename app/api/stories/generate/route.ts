@@ -6,6 +6,10 @@ import { runSosAuthorityNotify } from "@/lib/services/storySos";
 import { saveRecommendationBrief } from "@/lib/storage/briefStore";
 import type { MeshReport, NewsStory } from "@/lib/types";
 import type { MapIncidentEvent, MapIncidentSos } from "@/lib/types";
+import {
+  filterIncidentDataImages,
+  imageDataUrlsFromEvents,
+} from "@/lib/utils/apiPayload";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -14,9 +18,10 @@ const UUID_RE =
  * Primary body (incidents):
  * - news_id (UUID) — story id + GET /api/recommendations/[news_id]
  * - sos: { title, description, latitude, longitude } — one SMS, one primary pin
- * - events: [{ title, description, latitude, longitude }, ...] — map pins only
+ * - events: [{ title, description, latitude, longitude, image?: { data, mime_type } }, ...]
  * - send_sos_sms?: boolean — Twilio to SOS_AUTHORITY_SMS_TO
  * - authoritySmsTo?: string
+ * - images?: string[] — optional top-level data URLs; max 4 (events[].image preferred)
  *
  * Legacy: reports[] / report{} still supported for old clients.
  */
@@ -31,6 +36,7 @@ export async function POST(req: Request) {
       reports?: MeshReport[];
       report?: Record<string, unknown>;
       existingStories?: NewsStory[];
+      images?: string[];
     };
 
     const existing = body.existingStories || [];
@@ -57,17 +63,38 @@ export async function POST(req: Request) {
           { status: 400 }
         );
       }
-      const events: MapIncidentEvent[] = (body.events || []).map((e) => ({
-        title: String(e.title || "Event"),
-        description: String(e.description || ""),
-        latitude: Number(e.latitude),
-        longitude: Number(e.longitude),
-      })).filter((e) => !Number.isNaN(e.latitude) && !Number.isNaN(e.longitude));
+      const events: MapIncidentEvent[] = (body.events || []).map((e) => {
+        const ev: MapIncidentEvent = {
+          title: String(e.title || "Event"),
+          description: String(e.description || ""),
+          latitude: Number(e.latitude),
+          longitude: Number(e.longitude),
+        };
+        if (
+          e.image &&
+          typeof e.image === "object" &&
+          typeof (e.image as { data?: string }).data === "string"
+        ) {
+          const img = e.image as { data: string; mime_type?: string };
+          ev.image = {
+            data: img.data,
+            mime_type: String(img.mime_type || "image/jpeg"),
+          };
+        }
+        return ev;
+      }).filter((e) => !Number.isNaN(e.latitude) && !Number.isNaN(e.longitude));
 
+      const fromEvents = imageDataUrlsFromEvents(events);
+      const fromBody = filterIncidentDataImages(body.images || []);
+      const imageDataUrls =
+        fromEvents.length > 0
+          ? fromEvents.slice(0, 4)
+          : fromBody;
       const result = await generateStoryFromIncidents({
         newsId: body.news_id.trim(),
         sos,
         events,
+        imageDataUrls,
       });
 
       if (!result.story) {

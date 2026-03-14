@@ -26,12 +26,19 @@ export interface MapIncidentSos {
   longitude: number;
 }
 
-/** Other pins on the map — each with title + description */
+/** Inline image: base64 + mime (e.g. event photo) */
+export interface MapIncidentImage {
+  data: string;
+  mime_type: string;
+}
+
+/** Map pin — optional image per event */
 export interface MapIncidentEvent {
   title: string;
   description: string;
   latitude: number;
   longitude: number;
+  image?: MapIncidentImage;
 }
 
 export interface NewsStoryMapIncidents {

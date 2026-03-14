@@ -28,3 +28,32 @@ export function meshReportForGenerateApi(r: MeshReport): MeshReport {
 export function storiesForGenerateApi(stories: NewsStory[]): NewsStory[] {
   return stories.map((s) => ({ ...s, imageUrls: [] }));
 }
+
+/** data: URLs for generate incidents — max 4, max size each (Vercel/LLM limits) */
+export function filterIncidentDataImages(urls: unknown[]): string[] {
+  const out: string[] = [];
+  for (const u of urls) {
+    if (out.length >= 4) break;
+    if (typeof u !== "string" || !u.startsWith("data:image/")) continue;
+    if (u.length > MAX_DATA_URL_LEN) continue;
+    out.push(u);
+  }
+  return out;
+}
+
+/** Build data URLs from events[].image { data, mime_type }; max 4, size-capped */
+export function imageDataUrlsFromEvents(
+  events: Array<{ image?: { data?: string; mime_type?: string } }>
+): string[] {
+  const out: string[] = [];
+  for (const e of events) {
+    if (out.length >= 4) break;
+    const img = e.image;
+    if (!img?.data || typeof img.data !== "string") continue;
+    const mime = (img.mime_type || "image/jpeg").trim() || "image/jpeg";
+    const dataUrl = `data:${mime};base64,${img.data}`;
+    if (dataUrl.length > MAX_DATA_URL_LEN) continue;
+    out.push(dataUrl);
+  }
+  return out;
+}

@@ -45,6 +45,8 @@ export interface LLMProvider {
     newsId: string;
     sos: MapIncidentSos;
     events: MapIncidentEvent[];
+    /** data:image/...;base64,... for vision (optional) */
+    imageDataUrls?: string[];
   }): Promise<ArticleDraft>;
   generateSosAuthoritySms(input: {
     latitude: number;

@@ -175,18 +175,6 @@ export default function StoryArticle({
           </div>
         </section>
 
-        <p className="mt-4 text-xs text-neutral-500">
-          Actionables API:{" "}
-          <a
-            className="text-blue-700 underline"
-            href={`/api/recommendations/${encodeURIComponent(newsId)}`}
-            target="_blank"
-            rel="noreferrer"
-          >
-            GET /api/recommendations/{newsId.slice(0, 8)}…
-          </a>
-        </p>
-
         {images.length > 0 && (
           <div className="mt-8 space-y-4">
             {images.map((src, i) => (
@@ -218,10 +206,6 @@ export default function StoryArticle({
               <p key={i}>{p.replace(/\*\*/g, "")}</p>
             ))}
         </div>
-
-        <aside className="mt-8 border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
-          {story.unverifiedNote}
-        </aside>
       </article>
     </div>
   );
