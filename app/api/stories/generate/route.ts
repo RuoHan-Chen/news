@@ -4,6 +4,7 @@ import { generateStoryFromIncidents } from "@/lib/services/storyGenerateIncident
 import { generateStoryFromReports } from "@/lib/services/storyGenerate";
 import { runSosAuthorityNotify } from "@/lib/services/storySos";
 import { saveRecommendationBrief } from "@/lib/storage/briefStore";
+import { appendStoryToCloud } from "@/lib/storage/supabaseServer";
 import type { MeshReport, NewsStory } from "@/lib/types";
 import type { MapIncidentEvent, MapIncidentSos } from "@/lib/types";
 import {
@@ -146,6 +147,11 @@ export async function POST(req: Request) {
       };
       await saveRecommendationBrief(brief);
 
+      // Persist story + brief to Supabase so web app (and other clients) see it on pull
+      appendStoryToCloud(result.story, brief, "demo").catch((e) =>
+        console.warn("[MeshNews generate] appendStoryToCloud", e)
+      );
+
       return NextResponse.json({
         ok: true,
         ...result,
@@ -172,6 +178,11 @@ export async function POST(req: Request) {
     }
 
     const result = await generateStoryFromReports(reports, existing);
+    if (result.story) {
+      appendStoryToCloud(result.story, undefined, "demo").catch((e) =>
+        console.warn("[MeshNews generate] appendStoryToCloud (reports)", e)
+      );
+    }
     let authoritySms:
       | { sent: boolean; sid?: string; error?: string; body?: string }
       | undefined;
