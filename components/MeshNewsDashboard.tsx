@@ -15,6 +15,8 @@ import {
   storiesForGenerateApi,
 } from "@/lib/utils/apiPayload";
 import Link from "next/link";
+import { useCloudSync } from "@/components/CloudSyncProvider";
+import { setSyncRoomId } from "@/lib/storage/cloudSync";
 import { normalizeImageDescriptor } from "@/lib/utils/imageDescriptors";
 
 const repo = createIndexedDBRepository();
@@ -53,6 +55,8 @@ export default function MeshNewsDashboard() {
   const [msg, setMsg] = useState<string | null>(null);
   const [selectedStory, setSelectedStory] = useState<NewsStory | null>(null);
   const [smsTo, setSmsTo] = useState("+61452581119");
+  const sync = useCloudSync();
+  const bumpCloud = () => sync?.notifyLocalChange();
 
   useEffect(() => {
     const saved = localStorage.getItem(MODE_KEY) as Mode | null;
@@ -82,12 +86,19 @@ export default function MeshNewsDashboard() {
     refresh();
   }, [refresh]);
 
+  useEffect(() => {
+    const onPull = () => void refresh();
+    window.addEventListener("meshnews-sync-pull", onPull);
+    return () => window.removeEventListener("meshnews-sync-pull", onPull);
+  }, [refresh]);
+
   async function seedDemo() {
     setLoading(true);
     for (const r of seedReports()) await repo.putReport(r);
     await repo.putStory(seedStoryFromReport(seedReports()[0]));
     setMsg("Sample data added.");
     await refresh();
+    bumpCloud();
     setLoading(false);
   }
 
@@ -145,6 +156,7 @@ export default function MeshNewsDashboard() {
       const genData = await gen.json();
       if (genData.ok && genData.story) {
         await repo.putStory(genData.story as NewsStory);
+        bumpCloud();
         let tail = `Story ${genData.story.id}. GET actionables: ${genData.recommendations_url || "/api/recommendations/" + genData.story.newsId}`;
         const sms = genData.authoritySms as
           | { sent?: boolean; error?: string; sid?: string }
@@ -182,6 +194,7 @@ export default function MeshNewsDashboard() {
       let storiesCreated = 0;
       for (const report of data.reports as MeshReport[]) {
         await repo.putReport(report);
+        bumpCloud();
         const existing = await repo.listStories();
         const gen = await fetch("/api/stories/generate", {
           method: "POST",
@@ -198,6 +211,7 @@ export default function MeshNewsDashboard() {
             ...new Set([...(story.imageUrls ?? []), ...report.imageUrls]),
           ];
           await repo.putStory(story);
+          bumpCloud();
           storiesCreated++;
         }
       }
@@ -225,6 +239,7 @@ export default function MeshNewsDashboard() {
     const data = await res.json();
     if (data.ok && data.brief) {
       await repo.putRecommendation(data.brief);
+      bumpCloud();
       setMsg(
         `Safety brief saved. id=${data.id} — GET /api/recommendations/${data.id}`
       );
@@ -257,7 +272,10 @@ export default function MeshNewsDashboard() {
       }),
     });
     const data = await res.json();
-    if (data.ok && data.draft) await repo.putEscalation(data.draft);
+    if (data.ok && data.draft) {
+      await repo.putEscalation(data.draft);
+      bumpCloud();
+    }
     await refresh();
     setLoading(false);
     if (data.sms?.sent) setMsg(`Draft saved. SMS sent. Twilio sid=${data.sms.sid}`);
@@ -297,6 +315,11 @@ export default function MeshNewsDashboard() {
               Some items are based on community reports and are not confirmed by
               official sources. Always follow advice from emergency services.
             </p>
+            {sync?.syncOn && (
+              <p className="mt-2 rounded bg-sky-50 px-2 py-1 text-xs text-sky-800">
+                Shared demo sync on · list updates ~every 10s
+              </p>
+            )}
           </div>
         </header>
 
@@ -458,6 +481,31 @@ export default function MeshNewsDashboard() {
             </button>
           ))}
         </nav>
+        {sync?.syncOn && (
+          <div className="mx-auto flex max-w-4xl flex-wrap items-center gap-2 border-t border-sky-100 bg-sky-50 px-4 py-2 text-xs text-sky-900">
+            <strong>Shared demo</strong>
+            <span>Room</span>
+            <input
+              defaultValue={sync.room}
+              className="w-28 rounded border border-sky-200 px-1 font-mono"
+              onBlur={(e) => {
+                setSyncRoomId(e.target.value);
+                window.dispatchEvent(new Event("meshnews-sync-room"));
+                void sync.pullNow();
+              }}
+            />
+            <button
+              type="button"
+              className="rounded bg-sky-700 px-2 py-0.5 text-white"
+              onClick={() => void sync.pullNow().then(() => refresh())}
+            >
+              Pull now
+            </button>
+            <span className="text-sky-700">
+              Auto sync ~10s · same room = same data in every browser
+            </span>
+          </div>
+        )}
       </header>
 
       <main className="mx-auto max-w-4xl px-4 py-6">

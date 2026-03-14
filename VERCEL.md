@@ -25,6 +25,9 @@ This repo **builds cleanly** with the default Next.js settings—no `vercel.json
    | `SOS_AUTHORITY_SMS_TO` | SMS | Recipient (E.164 or AU `04…`) |
    | `UPSTASH_REDIS_REST_URL` | Optional | Persist `GET /api/recommendations/[id]` across instances |
    | `UPSTASH_REDIS_REST_TOKEN` | Optional | |
+   | `NEXT_PUBLIC_SUPABASE_URL` | Optional | Shared demo state across browsers |
+   | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Optional | `sb_publishable_…` (preferred over legacy anon) |
+   | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Optional | Legacy JWT anon if publishable unset |
 
 5. Deploy. First deploy runs `npm run build` on Vercel’s builders.
 

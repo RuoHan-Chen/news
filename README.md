@@ -62,7 +62,7 @@ On Vercel, add `CLAUDE_API_KEY` (and optional `CLAUDE_MODEL`) under Environment 
 3. Add `CLAUDE_API_KEY` (and optional `CLAUDE_MODEL`) in Vercel → Environment Variables.  
 4. Deploy.  
 
-IndexedDB is **per browser**; serverless functions are **stateless**. For multi-device persistence, add Supabase (or similar) behind `lib/storage/` repository.
+IndexedDB is **per browser** by default. For a **shared demo** across browsers (no API code to host), set **`NEXT_PUBLIC_SUPABASE_URL`** + **`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`** (Supabase → API Keys → Publishable; `sb_publishable_…`). Legacy JWT anon via **`NEXT_PUBLIC_SUPABASE_ANON_KEY`** still works. and run **`supabase/meshnews_demo.sql`** once. The app then **pulls ~every 10s** and **pushes** after local changes (same **room** id = same dataset).
 
 ## CORS (cross-origin API calls)
 

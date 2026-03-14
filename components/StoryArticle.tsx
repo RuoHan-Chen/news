@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { use, useEffect, useState } from "react";
+import { use, useCallback, useEffect, useState } from "react";
 import { createIndexedDBRepository } from "@/lib/storage/indexeddb";
 import type { NewsStory } from "@/lib/types";
 import { normalizeImageDescriptor } from "@/lib/utils/imageDescriptors";
@@ -41,20 +41,22 @@ export default function StoryArticle({
   const [story, setStory] = useState<NewsStory | null>(null);
   const [ready, setReady] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const stories = await repo.listStories();
-      const s = stories.find((x) => x.id === id) ?? null;
-      if (!cancelled) {
-        setStory(s);
-        setReady(true);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
+  const loadStory = useCallback(async () => {
+    const stories = await repo.listStories();
+    const s = stories.find((x) => x.id === id) ?? null;
+    setStory(s);
+    setReady(true);
   }, [id]);
+
+  useEffect(() => {
+    void loadStory();
+  }, [loadStory]);
+
+  useEffect(() => {
+    const onPull = () => void loadStory();
+    window.addEventListener("meshnews-sync-pull", onPull);
+    return () => window.removeEventListener("meshnews-sync-pull", onPull);
+  }, [loadStory]);
 
   if (!ready) {
     return (
