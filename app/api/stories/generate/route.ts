@@ -148,7 +148,7 @@ export async function POST(req: Request) {
       await saveRecommendationBrief(brief);
 
       // Persist story + brief to Supabase so web app (and other clients) see it on pull
-      appendStoryToCloud(result.story, brief, "demo").catch((e) =>
+      await appendStoryToCloud(result.story, brief, "demo").catch((e) =>
         console.warn("[MeshNews generate] appendStoryToCloud", e)
       );
 
@@ -179,7 +179,7 @@ export async function POST(req: Request) {
 
     const result = await generateStoryFromReports(reports, existing);
     if (result.story) {
-      appendStoryToCloud(result.story, undefined, "demo").catch((e) =>
+      await appendStoryToCloud(result.story, undefined, "demo").catch((e) =>
         console.warn("[MeshNews generate] appendStoryToCloud (reports)", e)
       );
     }
